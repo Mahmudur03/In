@@ -26,6 +26,17 @@ data class MonthlyStats(
 class EntryViewModel(private val repository: EntryRepository) : ViewModel() {
 
     private val currentCalendar = Calendar.getInstance()
+
+    private val _isPremium = MutableStateFlow(false)
+    val isPremium: StateFlow<Boolean> = _isPremium.asStateFlow()
+
+    fun unlockPremium() {
+        _isPremium.value = true
+    }
+
+    fun lockPremium() {
+        _isPremium.value = false
+    }
     
     private val _selectedMonth = MutableStateFlow(currentCalendar.get(Calendar.MONTH))
     val selectedMonth: StateFlow<Int> = _selectedMonth.asStateFlow()

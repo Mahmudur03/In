@@ -8,6 +8,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,14 +82,19 @@ fun MainDashboard(
 ) {
     var activeTab by remember { mutableStateOf(DashboardTab.ADD_ENTRY) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Collect variables synchronously
     val stats by viewModel.monthlyStats.collectAsState()
     val availableYears by viewModel.availableYears.collectAsState()
     val currentMonth by viewModel.selectedMonth.collectAsState()
     val currentYear by viewModel.selectedYear.collectAsState()
+    val isPremium by viewModel.isPremium.collectAsState()
 
-    Scaffold(
+    var showPaywall by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
@@ -141,20 +148,53 @@ fun MainDashboard(
                         )
                     }
                     
-                    // User icon block from Sleek Interface template or generic visual anchor
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(Color(0xFF112240))
-                            .border(1.dp, Color(0xFF2196F3).copy(alpha = 0.3f), RoundedCornerShape(22.dp)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Interactive Premium Badge matching the design themes exactly
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
-                                .border(2.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
-                        )
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (isPremium) Color(0xFF4CAF50).copy(alpha = 0.15f)
+                                    else Color(0xFF2196F3).copy(alpha = 0.15f)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isPremium) Color(0xFF4CAF50) else Color(0xFF2196F3),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { showPaywall = true }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .testTag("premium_status_badge"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (isPremium) "PRO ACTIVE" else "GET PRO",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isPremium) Color(0xFF4CAF50) else Color(0xFF2196F3),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        // User icon block from Sleek Interface template or generic visual anchor
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(Color(0xFF112240))
+                                .border(1.dp, Color(0xFF2196F3).copy(alpha = 0.3f), RoundedCornerShape(22.dp))
+                                .clickable { showPaywall = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .border(2.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+                            )
+                        }
                     }
                 }
 
@@ -237,6 +277,9 @@ fun MainDashboard(
                         snackbarHostState = snackbarHostState,
                         onSuccess = {
                             activeTab = DashboardTab.LIST // Auto-redirect to list for visual verification
+                        },
+                        onShowPaywall = {
+                            showPaywall = true
                         }
                     )
                 }
@@ -254,6 +297,20 @@ fun MainDashboard(
             }
         }
     }
+        
+    if (showPaywall) {
+        PaywallScreen(
+            onDismiss = { showPaywall = false },
+            onSuccess = {
+                showPaywall = false
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Welcome to Sleek Pro! Premium features unlocked.")
+                }
+            },
+            viewModel = viewModel
+        )
+    }
+}
 }
 
 @Composable

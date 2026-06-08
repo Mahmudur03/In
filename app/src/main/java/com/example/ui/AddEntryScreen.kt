@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,11 +66,15 @@ fun AddEntryScreen(
     viewModel: EntryViewModel,
     snackbarHostState: SnackbarHostState,
     onSuccess: () -> Unit,
+    onShowPaywall: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    val isPremium by viewModel.isPremium.collectAsState()
+    val stats by viewModel.monthlyStats.collectAsState()
 
     // Form states
     var amountText by remember { mutableStateOf("") }
@@ -372,6 +377,14 @@ fun AddEntryScreen(
                 }
 
                 if (!hasError) {
+                    if (!isPremium && stats.filteredEntries.size >= 5) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Free tier is limited to 5 records. Please unlock Pro tracking!")
+                        }
+                        onShowPaywall()
+                        return@Button
+                    }
+
                     viewModel.addEntry(
                         amount = amount!!,
                         description = descriptionText.trim(),
